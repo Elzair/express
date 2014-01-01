@@ -5,47 +5,34 @@ var express = require('../')
 describe('req', function(){
   describe('.signedCookies', function(){
     it('should return a signed JSON cookie', function(done){
-      var app = express()
-        , cookieHeader
-        , val;
+      var app = express();
 
       app.use(express.cookieParser('secret'));
 
       app.use(function(req, res){
-        res.send(req.signedCookies);
+        if ('/set' == req.path) {
+          res.cookie('obj', { foo: 'bar' }, { signed: true });
+          res.end();
+        } else {
+          res.send(req.signedCookies);
+        }
       });
 
-      app.response.req = { secret: 'secret' };
-      app.response.cookie('obj', { foo: 'bar' }, { signed: true });
-      cookieHeader = app.response.get('set-cookie');
-
-      val = JSON.stringify({ obj: { foo: 'bar' } });
       request(app)
-      .get('/')
-      .set('Cookie', cookieHeader)
-      .expect(val, done);
-    })
+      .get('/set')
+      .end(function(err, res){
+        if (err) return done(err);
+        var cookie = res.header['set-cookie'];
 
-    it('should return a signed cookie', function(done){
-      var app = express()
-        , cookieHeader
-        , val;
-
-      app.use(express.cookieParser('secret'));
-
-      app.use(function(req, res){
-        res.send(req.signedCookies);
+        request(app)
+        .get('/')
+        .set('Cookie', cookie)
+        .end(function(err, res){
+          if (err) return don(err);
+          res.body.should.eql({ obj: { foo: 'bar' } });
+          done();
+        });
       });
-
-      app.response.req = { secret: 'secret' };
-      app.response.cookie('foo', 'bar', { signed: true });
-      cookieHeader = app.response.get('set-cookie');
-
-      val = JSON.stringify({ foo: 'bar' });
-      request(app)
-      .get('/')
-      .set('Cookie', cookieHeader)
-      .expect(val, done);
     })
   })
 })

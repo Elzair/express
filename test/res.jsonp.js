@@ -16,9 +16,25 @@ describe('res', function(){
       .get('/?callback=something')
       .end(function(err, res){
         res.headers.should.have.property('content-type', 'text/javascript; charset=utf-8');
-        res.text.should.equal('something && something({"count":1});');
+        res.text.should.equal('typeof something === \'function\' && something({"count":1});');
         done();
       })
+    })
+
+    it('should use first callback parameter with jsonp', function(done){
+      var app = express();
+
+      app.use(function(req, res){
+        res.jsonp({ count: 1 });
+      });
+
+      request(app)
+          .get('/?callback=something&callback=somethingelse')
+          .end(function(err, res){
+            res.headers.should.have.property('content-type', 'text/javascript; charset=utf-8');
+            res.text.should.equal('typeof something === \'function\' && something({"count":1});');
+            done();
+          })
     })
 
     it('should allow renaming callback', function(done){
@@ -34,10 +50,10 @@ describe('res', function(){
       .get('/?clb=something')
       .end(function(err, res){
         res.headers.should.have.property('content-type', 'text/javascript; charset=utf-8');
-        res.text.should.equal('something && something({"count":1});');
+        res.text.should.equal('typeof something === \'function\' && something({"count":1});');
         done();
       })
-    })      
+    })
 
     it('should allow []', function(done){
       var app = express();
@@ -50,7 +66,7 @@ describe('res', function(){
       .get('/?callback=callbacks[123]')
       .end(function(err, res){
         res.headers.should.have.property('content-type', 'text/javascript; charset=utf-8');
-        res.text.should.equal('callbacks[123] && callbacks[123]({"count":1});');
+        res.text.should.equal('typeof callbacks[123] === \'function\' && callbacks[123]({"count":1});');
         done();
       })
     })
@@ -66,10 +82,26 @@ describe('res', function(){
       .get('/?callback=foo;bar()')
       .end(function(err, res){
         res.headers.should.have.property('content-type', 'text/javascript; charset=utf-8');
-        res.text.should.equal('foobar && foobar({});');
+        res.text.should.equal('typeof foobar === \'function\' && foobar({});');
         done();
       })
     })
+
+    it('should escape utf whitespace', function(done){
+      var app = express();
+
+      app.use(function(req, res){
+        res.jsonp({ str: '\u2028 \u2029 woot' });
+      });
+
+      request(app)
+      .get('/?callback=foo')
+      .end(function(err, res){
+        res.headers.should.have.property('content-type', 'text/javascript; charset=utf-8');
+        res.text.should.equal('typeof foo === \'function\' && foo({"str":"\\u2028 \\u2029 woot"});');
+        done();
+      });
+    });
 
     describe('when given primitives', function(){
       it('should respond with json', function(done){
@@ -106,7 +138,7 @@ describe('res', function(){
         })
       })
     })
-    
+
     describe('when given an object', function(){
       it('should respond with json', function(done){
         var app = express();
@@ -179,7 +211,7 @@ describe('res', function(){
       })
     })
   })
-  
+
   describe('.json(status, object)', function(){
     it('should respond with json and set the .statusCode', function(done){
       var app = express();
